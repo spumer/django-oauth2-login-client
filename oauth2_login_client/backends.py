@@ -18,10 +18,17 @@ class OAuthBackend(ModelBackend):
         return create_user(userdata)
 
     def authenticate(self, request=None, code=None, redirect_uri=None, **kwargs):
-        if redirect_uri is None:
-            oauth = oauth_session()
+        if not self.take_updated_token:
+            token_updater = None
         else:
-            oauth = oauth_session(redirect_uri=redirect_uri)
+            def token_updater(new_token):
+                nonlocal token
+                token = new_token
+
+        if redirect_uri is None:
+            oauth = oauth_session(token_updater=token_updater)
+        else:
+            oauth = oauth_session(redirect_uri=redirect_uri, token_updater=token_updater)
 
         token = oauth.fetch_token(
             settings.OAUTH_SERVER + settings.OAUTH_TOKEN_URL,
@@ -29,13 +36,6 @@ class OAuthBackend(ModelBackend):
             client_secret=settings.OAUTH_CLIENT_SECRET,
             verify=getattr(settings, 'OAUTH_VERIFY_SSL', True),
         )
-
-        if not self.take_updated_token:
-            token_updater = None
-        else:
-            def token_updater(new_token):
-                nonlocal token
-                token = new_token
 
         r = oauth.get(settings.OAUTH_SERVER + settings.OAUTH_RESOURCE_URL, token_updater=token_updater)
         if r.status_code != 200:
