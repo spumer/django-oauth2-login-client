@@ -6,6 +6,7 @@ from .utils import oauth_session, sync_user, create_user
 
 
 class OAuthBackend(ModelBackend):
+    take_updated_token = False
 
     def _extract_userdata(self, response):
         return response.json()
@@ -16,7 +17,7 @@ class OAuthBackend(ModelBackend):
     def _create_user(self, userdata):
         return create_user(userdata)
 
-    def authenticate(self, request=None, code=None, redirect_uri=None):
+    def authenticate(self, request=None, code=None, redirect_uri=None, **kwargs):
         if redirect_uri is None:
             oauth = oauth_session()
         else:
@@ -29,7 +30,14 @@ class OAuthBackend(ModelBackend):
             verify=getattr(settings, 'OAUTH_VERIFY_SSL', True),
         )
 
-        r = oauth.get(settings.OAUTH_SERVER + settings.OAUTH_RESOURCE_URL)
+        if not self.take_updated_token:
+            token_updater = None
+        else:
+            def token_updater(new_token):
+                nonlocal token
+                token = new_token
+
+        r = oauth.get(settings.OAUTH_SERVER + settings.OAUTH_RESOURCE_URL, token_updater=token_updater)
         if r.status_code != 200:
             logging.warning("Error response from auth server")
             return None
