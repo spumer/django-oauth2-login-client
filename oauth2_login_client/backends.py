@@ -37,7 +37,7 @@ class OAuthBackend(ModelBackend):
             verify=getattr(settings, 'OAUTH_VERIFY_SSL', True),
         )
 
-        r = oauth.get(settings.OAUTH_SERVER + settings.OAUTH_RESOURCE_URL, token_updater=token_updater)
+        r = oauth.get(settings.OAUTH_SERVER + settings.OAUTH_RESOURCE_URL)
         if r.status_code != 200:
             logging.warning("Error response from auth server")
             return None
